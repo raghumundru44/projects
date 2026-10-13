@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import { API_URL } from '../utils/config';
 
-const API_BASE = '/api';
+const API_BASE = `${API_URL}/api`;
 const AuthContext = createContext(null);
 
 axios.interceptors.request.use((config) => {
