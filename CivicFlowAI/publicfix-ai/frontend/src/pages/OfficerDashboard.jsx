@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge, DelayBadge } from '../components/Badges';
+import { getUploadUrl } from '../utils/config';
 import { Camera, RefreshCw, Upload, AlertCircle, Clock, MapPin, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -86,7 +87,7 @@ function ComplaintCard({ c, onStatusUpdate, onUploadCompletion }) {
 
       {/* Photo preview */}
       {c.original_photo && (
-        <img src={`/uploads/${c.original_photo}`} alt="issue"
+        <img src={getUploadUrl(c.original_photo)} alt="issue"
           style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #334155', marginBottom: '1rem' }} />
       )}
 

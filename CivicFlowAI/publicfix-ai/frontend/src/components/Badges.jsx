@@ -1,3 +1,5 @@
+import { getUploadUrl } from '../utils/config';
+
 export function StatusBadge({ status }) {
   const labels = {
     SUBMITTED: 'Submitted',
@@ -78,7 +80,7 @@ export function PhotoDisplay({ filename, label, alt }) {
     <div>
       {label && <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginBottom: '0.5rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</div>}
       <img
-        src={`/uploads/${filename}`}
+        src={getUploadUrl(filename)}
         alt={alt || label || 'photo'}
         style={{
           width: '100%', borderRadius: '8px',

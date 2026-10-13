@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { VerdictBadge } from '../components/Badges';
+import { getUploadUrl } from '../utils/config';
 import { ArrowLeft, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 
 export default function VerificationPage() {
@@ -83,7 +84,7 @@ export default function VerificationPage() {
             📷 Original Problem Photo
           </p>
           {originalPhoto ? (
-            <img src={`/uploads/${originalPhoto.filename}`} alt="original" style={{
+            <img src={getUploadUrl(originalPhoto.filename)} alt="original" style={{
               width: '100%', borderRadius: '8px', border: '1px solid #334155', aspectRatio: '4/3', objectFit: 'cover'
             }} />
           ) : <p style={{ color: '#475569' }}>No original photo</p>}
@@ -97,7 +98,7 @@ export default function VerificationPage() {
             ✅ Completion Photo (Officer Uploaded)
           </p>
           {completionPhoto ? (
-            <img src={`/uploads/${completionPhoto.filename}`} alt="completion" style={{
+            <img src={getUploadUrl(completionPhoto.filename)} alt="completion" style={{
               width: '100%', borderRadius: '8px', border: '1px solid #334155', aspectRatio: '4/3', objectFit: 'cover'
             }} />
           ) : <p style={{ color: '#475569' }}>No completion photo</p>}

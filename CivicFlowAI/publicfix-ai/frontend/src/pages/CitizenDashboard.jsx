@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { StatusBadge, DelayBadge } from '../components/Badges';
+import { getUploadUrl } from '../utils/config';
 import { Plus, FileText, MapPin, Calendar, RefreshCw } from 'lucide-react';
 
 export default function CitizenDashboard() {
@@ -102,7 +103,7 @@ export default function CitizenDashboard() {
                   display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
                   {c.original_photo ? (
-                    <img src={`/uploads/${c.original_photo}`} alt="issue" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={getUploadUrl(c.original_photo)} alt="issue" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     <span style={{ color: '#475569', fontSize: '1.5rem' }}>📷</span>
                   )}
