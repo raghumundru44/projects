@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const { dbGet } = require('../database/db');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'publicfix_hackathon_secret_key_2024_change_in_prod';
+
 async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -8,7 +10,7 @@ async function authenticate(req, res, next) {
   }
   const token = authHeader.split(' ')[1];
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, JWT_SECRET);
     const user = await dbGet('SELECT id, name, email, role, department FROM users WHERE id = ?', [payload.userId]);
     if (!user) {
       return res.status(401).json({ error: 'User not found.' });

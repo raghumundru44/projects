@@ -6,6 +6,7 @@ const { registerSchema, loginSchema } = require('../validations/schemas');
 const { authenticate } = require('../middleware/auth');
 
 const router = express.Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'publicfix_hackathon_secret_key_2024_change_in_prod';
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -27,7 +28,7 @@ router.post('/register', async (req, res) => {
       [name, email, hash, role, department || null]
     );
 
-    const token = jwt.sign({ userId: result.lastID }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ userId: result.lastID }, JWT_SECRET, { expiresIn: '24h' });
     res.status(201).json({
       message: 'Account created successfully.',
       token,
@@ -35,7 +36,7 @@ router.post('/register', async (req, res) => {
     });
   } catch (err) {
     console.error('Register error:', err);
-    res.status(500).json({ error: 'Failed to create account.' });
+    res.status(500).json({ error: 'Failed to create account.', details: err.message });
   }
 });
 
@@ -53,7 +54,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password.' });
     }
 
-    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: '24h' });
     res.json({
       message: 'Login successful.',
       token,
@@ -61,7 +62,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed.' });
+    res.status(500).json({ error: 'Login failed.', details: err.message });
   }
 });
 
