@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: publicfix-ai-backend
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build --prefix frontend
+    startCommand: node backend/server.js
+    envVars:
+      NODE_ENV: production
+      PORT: 10000
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      JWT_SECRET: ${JWT_SECRET}
+    autoDeploy: true
+    healthCheckPath: /api/health
