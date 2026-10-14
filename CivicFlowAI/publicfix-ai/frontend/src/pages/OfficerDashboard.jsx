@@ -77,19 +77,24 @@ function ComplaintCard({ c, onStatusUpdate, onUploadCompletion }) {
         </p>
       )}
 
-      {/* Location, Coordinates, Distance, Submission time */}
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap', background: '#0f172a', padding: '0.6rem 0.8rem', borderRadius: '6px' }}>
+      {/* Location, Coordinates, Assigned Office, Distance, Submission time */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap', background: '#0f172a', padding: '0.65rem 0.85rem', borderRadius: '6px' }}>
         <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <MapPin size={13} color="#38bdf8" /> <strong>Address:</strong> {c.location_text}
+          <MapPin size={13} color="#38bdf8" /> <strong>Address:</strong> {c.location_text || 'Address not specified'}
         </span>
         {c.latitude != null && c.longitude != null && (
           <span style={{ fontSize: '0.8rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
             🌐 <strong>GPS:</strong> {c.latitude}, {c.longitude}
           </span>
         )}
+        {c.assigned_office && (
+          <span style={{ fontSize: '0.8rem', color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            🏢 <strong>Assigned Office:</strong> {c.assigned_office} {c.assigned_office_id ? `(#${c.assigned_office_id})` : ''}
+          </span>
+        )}
         {c.distance != null && (
           <span style={{ fontSize: '0.8rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            📏 <strong>Distance to Office:</strong> ≈ {c.distance.toFixed(2)} km
+            📏 <strong>Distance:</strong> ≈ {c.distance.toFixed(2)} km
           </span>
         )}
         {c.submitted_at && (
@@ -107,9 +112,17 @@ function ComplaintCard({ c, onStatusUpdate, onUploadCompletion }) {
       </div>
 
       {/* Photo preview */}
-      {c.original_photo && (
-        <img src={getUploadUrl(c.original_photo)} alt="issue"
-          style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #334155', marginBottom: '1rem' }} />
+      {c.original_photo ? (
+        <img
+          src={getUploadUrl(c.original_photo)}
+          alt="Problem photograph"
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+          style={{ width: '100%', maxHeight: '220px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #334155', marginBottom: '1rem' }}
+        />
+      ) : (
+        <div style={{ padding: '0.75rem', background: '#0f172a', borderRadius: '6px', border: '1px dashed #334155', color: '#64748b', fontSize: '0.8rem', marginBottom: '1rem', textAlign: 'center' }}>
+          📷 No photograph attached
+        </div>
       )}
 
       {/* Latest note if exists */}
@@ -186,15 +199,19 @@ export default function OfficerDashboard() {
   const { user } = useAuth();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filter, setFilter] = useState('active');
 
   const fetchComplaints = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await axios.get('/api/officer/complaints');
-      setComplaints(res.data.complaints);
+      setComplaints(res.data.complaints || []);
     } catch (err) {
-      toast.error('Failed to load complaints.');
+      const msg = err.response?.data?.error || err.message || 'Failed to load complaints from backend.';
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -212,16 +229,31 @@ export default function OfficerDashboard() {
   const overdue = complaints.filter(c => c.delay_status === 'OVERDUE').length;
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem' }}>
+    <div style={{ maxWidth: '950px', margin: '0 auto', padding: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 800, marginBottom: '0.25rem' }}>Officer Dashboard</h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>{user.name} · {user.department}</p>
+          <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+            {user.name} · {user.department || 'All Departments'}
+          </p>
         </div>
-        <button onClick={fetchComplaints} className="btn-secondary">
-          <RefreshCw size={15} /> Refresh
+        <button onClick={fetchComplaints} className="btn-secondary" disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <RefreshCw size={15} className={loading ? 'spinner' : ''} /> Refresh
         </button>
       </div>
+
+      {/* Error alert banner */}
+      {error && (
+        <div style={{ background: '#3b0808', border: '1px solid #dc2626', borderRadius: '10px', padding: '1rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <AlertCircle size={18} color="#f87171" />
+            <span style={{ color: '#f87171', fontWeight: 600, fontSize: '0.9rem' }}>{error}</span>
+          </div>
+          <button onClick={fetchComplaints} className="btn-secondary" style={{ fontSize: '0.8rem', padding: '0.35rem 0.75rem' }}>
+            Retry Request
+          </button>
+        </div>
+      )}
 
       {overdue > 0 && (
         <div style={{ background: '#3b0808', border: '1px solid #dc2626', borderRadius: '10px', padding: '0.75rem 1rem', marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -232,7 +264,7 @@ export default function OfficerDashboard() {
 
       {/* Filter tabs */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-        {[['active', 'Active'], ['overdue', `Overdue (${overdue})`], ['awaiting', 'Awaiting Verification'], ['all', 'All']].map(([val, label]) => (
+        {[['active', 'Active'], ['overdue', `Overdue (${overdue})`], ['awaiting', 'Awaiting Verification'], ['all', 'All Complaints']].map(([val, label]) => (
           <button key={val} onClick={() => setFilter(val)} style={{
             background: filter === val ? '#1e3a5f' : '#1e293b',
             border: `1px solid ${filter === val ? '#2563eb' : '#334155'}`,
@@ -245,12 +277,20 @@ export default function OfficerDashboard() {
       </div>
 
       {loading ? (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+        <div className="card" style={{ textAlign: 'center', padding: '3.5rem' }}>
           <div className="spinner" style={{ margin: '0 auto', width: '2rem', height: '2rem' }}></div>
+          <p style={{ color: '#94a3b8', marginTop: '1rem', fontSize: '0.85rem' }}>Loading assigned complaints from municipal office...</p>
         </div>
       ) : filtered.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem', color: '#94a3b8' }}>
-          No complaints found for this filter.
+        <div className="card" style={{ textAlign: 'center', padding: '3.5rem 2rem', color: '#94a3b8' }}>
+          <MapPin size={40} color="#475569" style={{ margin: '0 auto 0.75rem' }} />
+          <h3 style={{ fontWeight: 700, color: '#f1f5f9', marginBottom: '0.4rem' }}>No Complaints Found</h3>
+          <p style={{ fontSize: '0.875rem', maxWidth: '420px', margin: '0 auto 1.25rem' }}>
+            There are currently no complaints assigned to your authorized office ({user.department || 'your department'}) under the "{filter}" tab.
+          </p>
+          <button onClick={fetchComplaints} className="btn-secondary" style={{ fontSize: '0.825rem' }}>
+            <RefreshCw size={14} /> Check for New Complaints
+          </button>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

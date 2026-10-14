@@ -75,26 +75,29 @@ async function seedDatabase() {
 
   // ---- Users ----
   const users = [
-    { name: 'Alice Citizen', email: 'citizen@demo.com', password: 'demo1234', role: 'citizen', department: null },
-    { name: 'Bob Officer', email: 'officer@demo.com', password: 'demo1234', role: 'officer', department: 'Road Maintenance' },
-    { name: 'Dave Sanitation', email: 'officer2@demo.com', password: 'demo1234', role: 'officer', department: 'Sanitation' },
-    { name: 'Wendy Water', email: 'water.officer@demo.com', password: 'demo1234', role: 'officer', department: 'Water and Sewerage' },
-    { name: 'Eli Electric', email: 'electric.officer@demo.com', password: 'demo1234', role: 'officer', department: 'Electrical Maintenance' },
-    { name: 'Carol Admin', email: 'admin@demo.com', password: 'demo1234', role: 'admin', department: 'Administration' }
+    { name: 'Alice Citizen', email: 'citizen@demo.com', password: 'demo1234', role: 'citizen', department: null, officeName: null },
+    { name: 'Bob Officer', email: 'officer@demo.com', password: 'demo1234', role: 'officer', department: 'Road Maintenance', officeName: 'GMC Road Infrastructure Division' },
+    { name: 'Dave Sanitation', email: 'officer2@demo.com', password: 'demo1234', role: 'officer', department: 'Sanitation', officeName: 'GMC Public Health & Sanitation Department' },
+    { name: 'Wendy Water', email: 'water.officer@demo.com', password: 'demo1234', role: 'officer', department: 'Water and Sewerage', officeName: 'GMC Water Works & Sewerage Department' },
+    { name: 'Eli Electric', email: 'electric.officer@demo.com', password: 'demo1234', role: 'officer', department: 'Electrical Maintenance', officeName: 'GMC Electrical & Streetlighting Wing' },
+    { name: 'Carol Admin', email: 'admin@demo.com', password: 'demo1234', role: 'admin', department: 'Administration', officeName: null }
   ];
   for (const user of users) {
+    let officeId = null;
+    if (user.officeName) {
+      const off = await dbGet('SELECT id FROM offices WHERE name = ?', [user.officeName]);
+      if (off) officeId = off.id;
+    }
     const exists = await dbGet('SELECT id FROM users WHERE email = ?', [user.email]);
     if (!exists) {
       const hash = bcrypt.hashSync(user.password, 10);
       await dbRun(
-        'INSERT INTO users (name, email, password_hash, role, department) VALUES (?, ?, ?, ?, ?)',
-        [user.name, user.email, hash, user.role, user.department]
+        'INSERT INTO users (name, email, password_hash, role, department, office_id) VALUES (?, ?, ?, ?, ?, ?)',
+        [user.name, user.email, hash, user.role, user.department, officeId]
       );
     } else {
-      // Ensure department is updated
-      if (user.department) {
-        await dbRun('UPDATE users SET department = ? WHERE id = ?', [user.department, exists.id]);
-      }
+      // Ensure department and office_id are updated
+      await dbRun('UPDATE users SET department = ?, office_id = ? WHERE id = ?', [user.department, officeId, exists.id]);
     }
   }
   console.log('✅ Demo users seeded.');

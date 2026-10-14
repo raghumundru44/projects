@@ -11,7 +11,7 @@ async function authenticate(req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    const user = await dbGet('SELECT id, name, email, role, department FROM users WHERE id = ?', [payload.userId]);
+    const user = await dbGet('SELECT id, name, email, role, department, office_id FROM users WHERE id = ?', [payload.userId]);
     if (!user) {
       return res.status(401).json({ error: 'User not found.' });
     }

@@ -20,21 +20,44 @@ function calcDelayStatus(dueDate) {
 }
 
 // GET /api/officer/complaints
-router.get('/complaints', authenticate, requireRole('officer'), async (req, res) => {
+router.get('/complaints', authenticate, requireRole('officer', 'admin'), async (req, res) => {
   try {
-    const complaints = await dbAll(`
-      SELECT c.*, cu.name as citizen_name, cu.email as citizen_email,
-        o.latitude as office_latitude, o.longitude as office_longitude,
-        (SELECT filename FROM complaint_photos WHERE complaint_id = c.id AND photo_type = 'original' ORDER BY id LIMIT 1) as original_photo,
-        (SELECT note FROM complaint_status_history WHERE complaint_id = c.id AND note IS NOT NULL ORDER BY id DESC LIMIT 1) as latest_note
-      FROM complaints c
-      LEFT JOIN users cu ON c.citizen_id = cu.id
-      LEFT JOIN offices o ON c.assigned_office_id = o.id
-      WHERE c.assigned_officer_id = ?
-         OR (c.assigned_office_id IS NOT NULL AND c.assigned_office_id IN (SELECT id FROM offices WHERE department = ?))
-         OR (c.assigned_office IS NOT NULL AND c.assigned_office IN (SELECT name FROM offices WHERE department = ?))
-      ORDER BY c.submitted_at DESC
-    `, [req.user.id, req.user.department, req.user.department]);
+    let complaints;
+    if (req.user.role === 'admin') {
+      complaints = await dbAll(`
+        SELECT c.*, cu.name as citizen_name, cu.email as citizen_email,
+          o.name as office_name, o.latitude as office_latitude, o.longitude as office_longitude,
+          (SELECT filename FROM complaint_photos WHERE complaint_id = c.id AND photo_type = 'original' ORDER BY id LIMIT 1) as original_photo,
+          (SELECT note FROM complaint_status_history WHERE complaint_id = c.id AND note IS NOT NULL ORDER BY id DESC LIMIT 1) as latest_note
+        FROM complaints c
+        LEFT JOIN users cu ON c.citizen_id = cu.id
+        LEFT JOIN offices o ON c.assigned_office_id = o.id
+        ORDER BY c.submitted_at DESC
+      `);
+    } else {
+      complaints = await dbAll(`
+        SELECT c.*, cu.name as citizen_name, cu.email as citizen_email,
+          o.name as office_name, o.latitude as office_latitude, o.longitude as office_longitude,
+          (SELECT filename FROM complaint_photos WHERE complaint_id = c.id AND photo_type = 'original' ORDER BY id LIMIT 1) as original_photo,
+          (SELECT note FROM complaint_status_history WHERE complaint_id = c.id AND note IS NOT NULL ORDER BY id DESC LIMIT 1) as latest_note
+        FROM complaints c
+        LEFT JOIN users cu ON c.citizen_id = cu.id
+        LEFT JOIN offices o ON c.assigned_office_id = o.id
+        WHERE c.assigned_officer_id = ?
+           OR (? IS NOT NULL AND c.assigned_office_id = ?)
+           OR (? IS NOT NULL AND c.assigned_office_id IN (SELECT id FROM offices WHERE LOWER(department) = LOWER(?)))
+           OR (? IS NOT NULL AND c.assigned_office IN (SELECT name FROM offices WHERE LOWER(department) = LOWER(?)))
+        ORDER BY c.submitted_at DESC
+      `, [
+        req.user.id,
+        req.user.office_id || null,
+        req.user.office_id || null,
+        req.user.department || null,
+        req.user.department || null,
+        req.user.department || null,
+        req.user.department || null
+      ]);
+    }
 
     const result = await Promise.all(complaints.map(async c => {
       let distance = null;
@@ -52,6 +75,7 @@ router.get('/complaints', authenticate, requireRole('officer'), async (req, res)
       }
       return {
         ...c,
+        assigned_office: c.assigned_office || c.office_name || (c.assigned_office_id ? `Municipal Office #${c.assigned_office_id}` : 'Unassigned'),
         distance,
         delay_status: calcDelayStatus(c.due_date)
       };

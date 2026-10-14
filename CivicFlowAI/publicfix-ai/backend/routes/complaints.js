@@ -70,6 +70,26 @@ router.post('/', authenticate, requireRole('citizen'), upload.single('photo'), a
       }
     }
 
+    // Fallback: If coordinates were missing or invalid, match verified office handling this category
+    if (!nearestOffice && category) {
+      const offices = await dbAll(
+        `SELECT o.id, o.name, o.department, o.latitude, o.longitude, o.address FROM offices o
+         JOIN office_categories oc ON o.id = oc.office_id
+         WHERE oc.category = ? AND o.is_verified = 1`,
+        [category]
+      );
+      if (offices && offices.length > 0) {
+        // Prefer office matching locality name if mentioned
+        const locLower = (location_text || '').toLowerCase();
+        nearestOffice = offices.find(o => 
+          (o.address && locLower.includes(o.address.toLowerCase())) ||
+          (o.name && locLower.includes(o.name.toLowerCase())) ||
+          (o.address && o.address.toLowerCase().includes('guntur') && locLower.includes('guntur')) ||
+          (o.address && o.address.toLowerCase().includes('bangalore') && locLower.includes('bangalore'))
+        ) || offices[0];
+      }
+    }
+
     // Determine office, officer, and status assignments
     let finalOfficeName = null;
     let finalOfficeId = null;
@@ -81,13 +101,20 @@ router.post('/', authenticate, requireRole('citizen'), upload.single('photo'), a
       finalOfficeName = nearestOffice.name;
       finalOfficeId = nearestOffice.id;
       initialStatus = 'ASSIGNED';
-      assignmentNote = `Auto-assigned to ${nearestOffice.name} (${nearestOffice.department}, ${Math.round(nearestOffice.distance * 100) / 100} km away)`;
+      const distInfo = nearestOffice.distance != null ? `, ${Math.round(nearestOffice.distance * 100) / 100} km away` : '';
+      assignmentNote = `Auto-assigned to ${nearestOffice.name} (${nearestOffice.department}${distInfo})`;
 
-      // Find an officer in the same department
-      const officer = await dbGet(
-        `SELECT id FROM users WHERE role = 'officer' AND department = ? LIMIT 1`,
-        [nearestOffice.department]
+      // Find an officer in the same office or department
+      let officer = await dbGet(
+        `SELECT id FROM users WHERE role = 'officer' AND office_id = ? LIMIT 1`,
+        [nearestOffice.id]
       );
+      if (!officer) {
+        officer = await dbGet(
+          `SELECT id FROM users WHERE role = 'officer' AND LOWER(department) = LOWER(?) LIMIT 1`,
+          [nearestOffice.department]
+        );
+      }
       if (officer) {
         finalOfficerId = officer.id;
       }

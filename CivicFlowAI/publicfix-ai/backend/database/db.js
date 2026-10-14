@@ -69,6 +69,7 @@ async function initializeDatabase() {
       password_hash TEXT NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('citizen', 'officer', 'admin')),
       department TEXT,
+      office_id INTEGER REFERENCES offices(id),
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -152,8 +153,15 @@ async function initializeDatabase() {
   await dbExec(`CREATE INDEX IF NOT EXISTS idx_complaints_officer ON complaints(assigned_officer_id);`);
   await dbExec(`CREATE INDEX IF NOT EXISTS idx_complaints_complaint_id ON complaints(complaint_id);`);
 
-  // Migration: ensure assigned_office_id exists and status allows UNASSIGNED
+  // Migration: ensure assigned_office_id exists, users.office_id exists, and status allows UNASSIGNED
   try {
+    const userCols = await dbAll(`PRAGMA table_info(users);`);
+    const hasOfficeId = userCols.some(c => c.name === 'office_id');
+    if (!hasOfficeId) {
+      console.log('Migrating: Adding office_id to users table...');
+      await dbExec(`ALTER TABLE users ADD COLUMN office_id INTEGER REFERENCES offices(id);`);
+    }
+
     const cols = await dbAll(`PRAGMA table_info(complaints);`);
     const hasAssignedOfficeId = cols.some(c => c.name === 'assigned_office_id');
     if (!hasAssignedOfficeId) {

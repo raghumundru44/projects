@@ -51,10 +51,17 @@ export default function LoginPage() {
         <div className="card" style={{ marginBottom: '1.5rem', padding: '1rem' }}>
           <p style={{ color: '#94a3b8', fontSize: '0.75rem', marginBottom: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Quick Demo Login</p>
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            {[['Citizen', 'citizen@demo.com'], ['Officer', 'officer@demo.com'], ['Admin', 'admin@demo.com']].map(([label, email]) => (
+            {[
+              ['Citizen', 'citizen@demo.com'],
+              ['Officer (Roads)', 'officer@demo.com'],
+              ['Officer (Sanitation)', 'officer2@demo.com'],
+              ['Officer (Water)', 'water.officer@demo.com'],
+              ['Officer (Electric)', 'electric.officer@demo.com'],
+              ['Admin', 'admin@demo.com']
+            ].map(([label, email]) => (
               <button key={email} onClick={() => fillDemo(email)} style={{
                 background: '#0f172a', border: '1px solid #334155', borderRadius: '6px',
-                color: '#94a3b8', padding: '0.3rem 0.75rem', cursor: 'pointer', fontSize: '0.8rem',
+                color: '#94a3b8', padding: '0.3rem 0.65rem', cursor: 'pointer', fontSize: '0.78rem',
                 transition: 'all 0.2s'
               }}
               onMouseEnter={e => { e.target.style.borderColor = '#2563eb'; e.target.style.color = '#60a5fa'; }}
