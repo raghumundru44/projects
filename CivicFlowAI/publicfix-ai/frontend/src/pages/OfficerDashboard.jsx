@@ -56,7 +56,12 @@ function ComplaintCard({ c, onStatusUpdate, onUploadCompletion }) {
     <div className="card" style={{ border: c.delay_status === 'OVERDUE' ? '1px solid #dc2626' : '1px solid #334155' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
         <div>
-          <h3 style={{ fontWeight: 700, marginBottom: '0.25rem', fontSize: '1rem' }}>{c.title}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+            <h3 style={{ fontWeight: 700, margin: 0, fontSize: '1.05rem' }}>{c.title}</h3>
+            <span style={{ fontSize: '0.72rem', background: '#1e3a5f', color: '#60a5fa', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
+              {c.category}
+            </span>
+          </div>
           <code style={{ fontSize: '0.75rem', color: '#60a5fa' }}>{c.complaint_id}</code>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -65,49 +70,77 @@ function ComplaintCard({ c, onStatusUpdate, onUploadCompletion }) {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+      {/* Description */}
+      {c.description && (
+        <p style={{ fontSize: '0.875rem', color: '#cbd5e1', lineHeight: 1.5, marginBottom: '0.75rem' }}>
+          {c.description}
+        </p>
+      )}
+
+      {/* Location, Coordinates, Distance, Submission time */}
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '0.75rem', flexWrap: 'wrap', background: '#0f172a', padding: '0.6rem 0.8rem', borderRadius: '6px' }}>
         <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          <MapPin size={12} /> {c.location_text}
-          {c.distance && (
-            <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <MapPin size={12} />≈ {c.distance.toFixed(2)} km
-            </span>
-          )}
+          <MapPin size={13} color="#38bdf8" /> <strong>Address:</strong> {c.location_text}
         </span>
-        <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-          👤 {c.citizen_name}
-          📧 {c.citizen_email}
-        </span>
-        {c.due_date && (
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <Clock size={12} /> Due: {new Date(c.due_date).toLocaleDateString()}
+        {c.latitude != null && c.longitude != null && (
+          <span style={{ fontSize: '0.8rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            🌐 <strong>GPS:</strong> {c.latitude}, {c.longitude}
           </span>
+        )}
+        {c.distance != null && (
+          <span style={{ fontSize: '0.8rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            📏 <strong>Distance to Office:</strong> ≈ {c.distance.toFixed(2)} km
+          </span>
+        )}
+        {c.submitted_at && (
+          <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+            <Clock size={13} /> <strong>Submitted:</strong> {new Date(c.submitted_at).toLocaleString()}
+          </span>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '0.75rem', flexWrap: 'wrap', fontSize: '0.8rem', color: '#94a3b8' }}>
+        <span>👤 <strong>Citizen:</strong> {c.citizen_name || 'Citizen'} ({c.citizen_email || 'N/A'})</span>
+        {c.due_date && (
+          <span><Clock size={12} style={{ display: 'inline', verticalAlign: 'middle' }} /> Due: {new Date(c.due_date).toLocaleDateString()}</span>
         )}
       </div>
 
       {/* Photo preview */}
       {c.original_photo && (
         <img src={getUploadUrl(c.original_photo)} alt="issue"
-          style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #334155', marginBottom: '1rem' }} />
+          style={{ width: '100%', maxHeight: '200px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #334155', marginBottom: '1rem' }} />
       )}
 
-      {/* Status update */}
+      {/* Latest note if exists */}
+      {c.latest_note && (
+        <div style={{ background: '#1e293b', borderLeft: '3px solid #38bdf8', padding: '0.5rem 0.75rem', borderRadius: '0 6px 6px 0', marginBottom: '0.875rem' }}>
+          <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+            <strong style={{ color: '#38bdf8' }}>Latest Note:</strong> {c.latest_note}
+          </p>
+        </div>
+      )}
+
+      {/* Status update & Officer Response */}
       {allowStatusChange && (
         <div style={{ borderTop: '1px solid #334155', paddingTop: '0.875rem', marginBottom: '0.875rem' }}>
-          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Update Status</p>
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>
+            Update Status & Submit Officer Response
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
             <select value={status} onChange={e => setStatus(e.target.value)} style={{ flex: 1, minWidth: '150px' }}>
-              <option value="">Select status...</option>
+              <option value="">Select new status...</option>
               {VALID_TRANSITIONS.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
             </select>
             <button onClick={handleStatus} className="btn-primary" disabled={statusLoading} style={{ whiteSpace: 'nowrap' }}>
-              {statusLoading ? <span className="spinner"></span> : <CheckCircle size={15} />} Update
+              {statusLoading ? <span className="spinner"></span> : <CheckCircle size={15} />} Save Status & Response
             </button>
           </div>
           <input
-            type="text" placeholder="Optional note..."
-            value={note} onChange={e => setNote(e.target.value)}
-            style={{ marginTop: '0.5rem' }}
+            type="text"
+            placeholder="Officer response note (e.g. Work crew dispatched to road; repairs in progress)..."
+            value={note}
+            onChange={e => setNote(e.target.value)}
           />
         </div>
       )}

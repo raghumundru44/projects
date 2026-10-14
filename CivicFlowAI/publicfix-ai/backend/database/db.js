@@ -132,7 +132,7 @@ async function initializeDatabase() {
       location_text TEXT NOT NULL,
       latitude REAL,
       longitude REAL,
-      status TEXT NOT NULL DEFAULT 'SUBMITTED' CHECK(status IN ('SUBMITTED','ASSIGNED','IN_PROGRESS','AWAITING_VERIFICATION','RESOLVED','REOPENED')),
+      status TEXT NOT NULL DEFAULT 'SUBMITTED' CHECK(status IN ('SUBMITTED','UNASSIGNED','ASSIGNED','IN_PROGRESS','AWAITING_VERIFICATION','RESOLVED','REOPENED')),
       citizen_id INTEGER NOT NULL,
       assigned_office TEXT,
       assigned_office_id INTEGER,
@@ -151,6 +151,69 @@ async function initializeDatabase() {
   await dbExec(`CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);`);
   await dbExec(`CREATE INDEX IF NOT EXISTS idx_complaints_officer ON complaints(assigned_officer_id);`);
   await dbExec(`CREATE INDEX IF NOT EXISTS idx_complaints_complaint_id ON complaints(complaint_id);`);
+
+  // Migration: ensure assigned_office_id exists and status allows UNASSIGNED
+  try {
+    const cols = await dbAll(`PRAGMA table_info(complaints);`);
+    const hasAssignedOfficeId = cols.some(c => c.name === 'assigned_office_id');
+    if (!hasAssignedOfficeId) {
+      console.log('Migrating: Adding assigned_office_id to complaints table...');
+      await dbExec(`ALTER TABLE complaints ADD COLUMN assigned_office_id INTEGER REFERENCES offices(id);`);
+    }
+
+    const tableRow = await dbGet(`SELECT sql FROM sqlite_master WHERE type='table' AND name='complaints';`);
+    if (tableRow && tableRow.sql && !tableRow.sql.includes('UNASSIGNED')) {
+      console.log('Migrating: Updating complaints status CHECK constraint to allow UNASSIGNED...');
+      await dbExec(`PRAGMA foreign_keys = OFF;`);
+      await dbExec(`
+        CREATE TABLE complaints_migration_tmp (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          complaint_id TEXT UNIQUE NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          category TEXT NOT NULL,
+          location_text TEXT NOT NULL,
+          latitude REAL,
+          longitude REAL,
+          status TEXT NOT NULL DEFAULT 'SUBMITTED' CHECK(status IN ('SUBMITTED','UNASSIGNED','ASSIGNED','IN_PROGRESS','AWAITING_VERIFICATION','RESOLVED','REOPENED')),
+          citizen_id INTEGER NOT NULL,
+          assigned_office TEXT,
+          assigned_office_id INTEGER,
+          assigned_officer_id INTEGER,
+          routing_rule_id INTEGER,
+          due_date TEXT,
+          submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+          FOREIGN KEY (citizen_id) REFERENCES users(id),
+          FOREIGN KEY (assigned_office_id) REFERENCES offices(id),
+          FOREIGN KEY (assigned_officer_id) REFERENCES users(id),
+          FOREIGN KEY (routing_rule_id) REFERENCES office_routing_rules(id)
+        );
+      `);
+      await dbExec(`
+        INSERT INTO complaints_migration_tmp (
+          id, complaint_id, title, description, category, location_text, latitude, longitude,
+          status, citizen_id, assigned_office, assigned_office_id, assigned_officer_id,
+          routing_rule_id, due_date, submitted_at, updated_at
+        )
+        SELECT 
+          id, complaint_id, title, description, category, location_text, latitude, longitude,
+          status, citizen_id, assigned_office, assigned_office_id, assigned_officer_id,
+          routing_rule_id, due_date, submitted_at, updated_at
+        FROM complaints;
+      `);
+      await dbExec(`DROP TABLE complaints;`);
+      await dbExec(`ALTER TABLE complaints_migration_tmp RENAME TO complaints;`);
+      await dbExec(`CREATE INDEX IF NOT EXISTS idx_complaints_citizen ON complaints(citizen_id);`);
+      await dbExec(`CREATE INDEX IF NOT EXISTS idx_complaints_status ON complaints(status);`);
+      await dbExec(`CREATE INDEX IF NOT EXISTS idx_complaints_officer ON complaints(assigned_officer_id);`);
+      await dbExec(`CREATE INDEX IF NOT EXISTS idx_complaints_complaint_id ON complaints(complaint_id);`);
+      await dbExec(`PRAGMA foreign_keys = ON;`);
+      console.log('✅ Complaints table migrated successfully to allow UNASSIGNED status.');
+    }
+  } catch (migErr) {
+    console.warn('Migration check note:', migErr.message);
+  }
 
   // Complaint photos
   await dbExec(`

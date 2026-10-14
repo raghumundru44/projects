@@ -18,7 +18,7 @@ async function getOfficesByCategory(category) {
     return officeCache[category].offices;
   }
   const offices = await dbAll(
-    `SELECT o.id, o.name, o.latitude, o.longitude FROM offices o
+    `SELECT o.id, o.name, o.department, o.latitude, o.longitude, o.address, o.is_verified FROM offices o
      JOIN office_categories oc ON o.id = oc.office_id
      WHERE oc.category = ? AND o.is_verified = 1`,
     [category]
@@ -28,8 +28,9 @@ async function getOfficesByCategory(category) {
 }
 
 async function getNearestOffice(category, lat, lon) {
+  if (lat == null || lon == null) return null;
   const offices = await getOfficesByCategory(category);
-  if (!offices.length) return null;
+  if (!offices || !offices.length) return null;
   const withDist = offices.map(o => ({
     ...o,
     distance: haversine(lat, lon, o.latitude, o.longitude)
@@ -40,7 +41,7 @@ async function getNearestOffice(category, lat, lon) {
 
 async function getOfficeByName(name) {
   if (!name) return null;
-  return await dbGet(`SELECT id, name, latitude, longitude FROM offices WHERE name = ?`, [name]);
+  return await dbGet(`SELECT id, name, department, latitude, longitude, address, is_verified FROM offices WHERE name = ?`, [name]);
 }
 
 module.exports = { haversine, getNearestOffice, getOfficeByName };

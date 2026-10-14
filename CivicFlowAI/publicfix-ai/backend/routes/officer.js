@@ -5,6 +5,7 @@ const { authenticate, requireRole } = require('../middleware/auth');
 const { upload } = require('../middleware/upload');
 const { statusUpdateSchema } = require('../validations/schemas');
 const { runVerification } = require('../services/geminiVerification');
+const { haversine, getOfficeByName } = require('../helpers/officeLookup');
 
 const router = express.Router();
 
@@ -23,14 +24,39 @@ router.get('/complaints', authenticate, requireRole('officer'), async (req, res)
   try {
     const complaints = await dbAll(`
       SELECT c.*, cu.name as citizen_name, cu.email as citizen_email,
-        (SELECT filename FROM complaint_photos WHERE complaint_id = c.id AND photo_type = 'original' ORDER BY id LIMIT 1) as original_photo
+        o.latitude as office_latitude, o.longitude as office_longitude,
+        (SELECT filename FROM complaint_photos WHERE complaint_id = c.id AND photo_type = 'original' ORDER BY id LIMIT 1) as original_photo,
+        (SELECT note FROM complaint_status_history WHERE complaint_id = c.id AND note IS NOT NULL ORDER BY id DESC LIMIT 1) as latest_note
       FROM complaints c
       LEFT JOIN users cu ON c.citizen_id = cu.id
+      LEFT JOIN offices o ON c.assigned_office_id = o.id
       WHERE c.assigned_officer_id = ?
+         OR (c.assigned_office_id IS NOT NULL AND c.assigned_office_id IN (SELECT id FROM offices WHERE department = ?))
+         OR (c.assigned_office IS NOT NULL AND c.assigned_office IN (SELECT name FROM offices WHERE department = ?))
       ORDER BY c.submitted_at DESC
-    `, [req.user.id]);
+    `, [req.user.id, req.user.department, req.user.department]);
 
-    const result = complaints.map(c => ({ ...c, delay_status: calcDelayStatus(c.due_date) }));
+    const result = await Promise.all(complaints.map(async c => {
+      let distance = null;
+      let offLat = c.office_latitude;
+      let offLng = c.office_longitude;
+      if ((offLat == null || offLng == null) && c.assigned_office && c.assigned_office !== 'UNASSIGNED') {
+        const off = await getOfficeByName(c.assigned_office);
+        if (off) {
+          offLat = off.latitude;
+          offLng = off.longitude;
+        }
+      }
+      if (c.latitude != null && c.longitude != null && offLat != null && offLng != null) {
+        distance = Math.round(haversine(c.latitude, c.longitude, offLat, offLng) * 100) / 100;
+      }
+      return {
+        ...c,
+        distance,
+        delay_status: calcDelayStatus(c.due_date)
+      };
+    }));
+
     res.json({ complaints: result });
   } catch (err) {
     console.error('Officer complaints error:', err);
@@ -50,8 +76,16 @@ router.patch('/complaints/:complaintId/status', authenticate, requireRole('offic
     const complaint = await dbGet('SELECT * FROM complaints WHERE complaint_id = ?', [req.params.complaintId]);
     if (!complaint) return res.status(404).json({ error: 'Complaint not found.' });
 
-    if (req.user.role === 'officer' && complaint.assigned_officer_id !== req.user.id) {
-      return res.status(403).json({ error: 'You are not assigned to this complaint.' });
+    if (req.user.role === 'officer') {
+      const authorizedOffices = await dbAll('SELECT id, name FROM offices WHERE department = ?', [req.user.department]);
+      const officeIds = authorizedOffices.map(o => o.id);
+      const officeNames = authorizedOffices.map(o => o.name);
+      const isAuthorized = complaint.assigned_officer_id === req.user.id ||
+                           (complaint.assigned_office_id && officeIds.includes(complaint.assigned_office_id)) ||
+                           (complaint.assigned_office && officeNames.includes(complaint.assigned_office));
+      if (!isAuthorized) {
+        return res.status(403).json({ error: 'You are not assigned to this complaint.' });
+      }
     }
 
     if (status === 'RESOLVED' && req.user.role === 'officer') {
@@ -59,11 +93,16 @@ router.patch('/complaints/:complaintId/status', authenticate, requireRole('offic
     }
 
     const oldStatus = complaint.status;
-    await dbRun(`UPDATE complaints SET status = ?, updated_at = datetime('now') WHERE id = ?`, [status, complaint.id]);
     await dbRun(`
-      INSERT INTO complaint_status_history (complaint_id, old_status, new_status, changed_by, note)
-      VALUES (?, ?, ?, ?, ?)
-    `, [complaint.id, oldStatus, status, req.user.id, note || null]);
+      UPDATE complaints 
+      SET status = ?, assigned_officer_id = COALESCE(assigned_officer_id, ?), updated_at = datetime('now') 
+      WHERE id = ?
+    `, [status, req.user.id, complaint.id]);
+
+    await dbRun(`
+      INSERT INTO complaint_status_history (complaint_id, old_status, new_status, changed_by, note, changed_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `, [complaint.id, oldStatus, status, req.user.id, note || `Status updated to ${status}`]);
 
     res.json({ message: 'Status updated successfully.' });
   } catch (err) {

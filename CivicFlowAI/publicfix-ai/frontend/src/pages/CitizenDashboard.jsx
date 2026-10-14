@@ -118,6 +118,9 @@ export default function CitizenDashboard() {
                     <StatusBadge status={c.status} />
                   </div>
                   <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '0.4rem' }}>
+                    <span style={{ fontSize: '0.75rem', background: '#1e3a5f', color: '#60a5fa', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600 }}>
+                      {c.category}
+                    </span>
                     <span style={{ fontSize: '0.8rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                       <MapPin size={12} /> {c.location_text}
                     </span>
@@ -125,6 +128,24 @@ export default function CitizenDashboard() {
                       <Calendar size={12} /> {new Date(c.submitted_at).toLocaleDateString()}
                     </span>
                   </div>
+
+                  {/* Assigned office info */}
+                  {c.assigned_office && (
+                    <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <span>🏢 <strong>Office:</strong> {c.assigned_office}</span>
+                      {c.distance != null && <span style={{ color: '#4ade80' }}>(≈ {c.distance.toFixed(2)} km)</span>}
+                    </div>
+                  )}
+
+                  {/* Officer response / update note */}
+                  {c.latest_note && (
+                    <div style={{ background: '#1e293b', borderLeft: '3px solid #38bdf8', padding: '0.35rem 0.6rem', borderRadius: '0 4px 4px 0', marginBottom: '0.4rem' }}>
+                      <p style={{ fontSize: '0.78rem', color: '#94a3b8', margin: 0 }}>
+                        <strong style={{ color: '#38bdf8' }}>Officer Response:</strong> {c.latest_note}
+                      </p>
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                     <span style={{ fontSize: '0.75rem', color: '#475569', background: '#0f172a', borderRadius: '4px', padding: '0.1rem 0.5rem' }}>
                       {c.complaint_id}

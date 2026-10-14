@@ -94,13 +94,17 @@ export default function ComplaintDetailPage() {
         <p style={{ color: '#94a3b8', lineHeight: 1.6, marginBottom: '1rem' }}>{complaint.description}</p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem' }}>
-          <InfoItem icon={<MapPin size={14} />} label="Location" value={complaint.location_text} />
+          <InfoItem icon={<span>📋</span>} label="Category" value={complaint.category} />
+          <InfoItem icon={<MapPin size={14} />} label="Location / Address" value={complaint.location_text} />
+          {complaint.latitude != null && complaint.longitude != null && (
+            <InfoItem icon={<MapPin size={14} color="#38bdf8" />} label="GPS Coordinates" value={`${complaint.latitude}, ${complaint.longitude}`} />
+          )}
           <InfoItem icon={<Calendar size={14} />} label="Submitted" value={new Date(complaint.submitted_at).toLocaleString()} />
           {complaint.assigned_office && (
             <>
               <InfoItem icon={<Building2 size={14} />} label="Assigned Office" value={complaint.assigned_office} />
-              {complaint.distance && (
-                <InfoItem icon={<MapPin size={14} />} label="Distance to Office" value={`${complaint.distance.toFixed(2)} km`} />
+              {complaint.distance != null && (
+                <InfoItem icon={<MapPin size={14} />} label="Distance to Office" value={`≈ ${complaint.distance.toFixed(2)} km`} />
               )}
             </>
           )}
